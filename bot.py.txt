@@ -1,0 +1,118 @@
+# ====================== HORUS BOT - VASTO + APIS ======================
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import asyncio
+import logging
+import requests
+import qrcode
+from io import BytesIO
+
+TOKEN = "8246869152:AAHlGG6au1CmXYXgUezsHE9pvQx822C_10k"   # ← SUBSTITUA PELO SEU TOKEN
+
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+logging.basicConfig(level=logging.INFO)
+
+# ==================== MENU PRINCIPAL ====================
+def main_menu():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔍 OSINT", callback_data="osint")],
+        [InlineKeyboardButton(text="🛠️ Utilidades", callback_data="utils")],
+        [InlineKeyboardButton(text="📊 Ferramentas", callback_data="tools")],
+        [InlineKeyboardButton(text="🎮 Diversão", callback_data="fun")],
+        [InlineKeyboardButton(text="ℹ️ Sobre", callback_data="about")]
+    ])
+
+# ==================== START ====================
+@dp.message(Command("start"))
+async def start(message: types.Message):
+    await message.answer(
+        "👁️ <b>Horus Bot</b>\n\n"
+        "Bot multifuncional completo.\n"
+        "Escolha uma categoria abaixo:",
+        reply_markup=main_menu(),
+        parse_mode="HTML"
+    )
+
+@dp.message(Command("help"))
+async def help_cmd(message: types.Message):
+    await message.answer(
+        "📌 Comandos disponíveis:\n"
+        "/start - Menu principal\n"
+        "/joke - Piada aleatória\n"
+        "/clima [cidade] - Ver clima\n"
+        "/qr [texto] - Gerar QR Code\n"
+        "/short [link] - Encurtar link",
+        parse_mode="HTML"
+    )
+
+# ==================== CALLBACKS ====================
+@dp.callback_query()
+async def callback_handler(callback: types.CallbackQuery):
+    data = callback.data
+
+    if data == "osint":
+        await callback.message.edit_text("🔍 <b>OSINT</b>\n\nEm breve mais ferramentas.")
+    elif data == "utils":
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📱 Gerar QR Code", callback_data="qr")],
+            [InlineKeyboardButton(text="🌤️ Clima", callback_data="weather")],
+            [InlineKeyboardButton(text="🔗 Encurtar Link", callback_data="shorturl")]
+        ])
+        await callback.message.edit_text("🛠️ <b>Utilidades</b>\nEscolha:", reply_markup=kb)
+    elif data == "fun":
+        await callback.message.answer("🎮 Use /joke para uma piada aleatória.")
+    elif data == "about":
+        await callback.message.edit_text("👁️ Horus Bot\nVersão Vasta com integração de APIs.")
+
+    await callback.answer()
+
+# ==================== FUNCIONALIDADES COM APIS ====================
+
+# Piada Aleatória
+@dp.message(Command("joke"))
+async def joke(message: types.Message):
+    try:
+        r = requests.get("https://official-joke-api.appspot.com/random_joke")
+        data = r.json()
+        await message.answer(f"😂 {data['setup']}\n\n{data['punchline']}")
+    except:
+        await message.answer("Não consegui pegar uma piada agora.")
+
+# Clima
+@dp.message(Command("clima"))
+async def clima(message: types.Message):
+    try:
+        city = message.text.split(maxsplit=1)[1] if len(message.text.split()) > 1 else "São Paulo"
+        # Geocoding
+        geo = requests.get(f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1&language=pt").json()
+        if "results" in geo:
+            lat = geo["results"][0]["latitude"]
+            lon = geo["results"][0]["longitude"]
+            name = geo["results"][0]["name"]
+            w = requests.get(f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true").json()
+            temp = w["current_weather"]["temperature"]
+            await message.answer(f"🌤️ <b>{name}</b>\nTemperatura: <b>{temp}°C</b>", parse_mode="HTML")
+    except:
+        await message.answer("Erro ao buscar clima.")
+
+# Gerar QR Code
+@dp.message(Command("qr"))
+async def qr(message: types.Message):
+    try:
+        text = message.text.split(maxsplit=1)[1]
+        qr = qrcode.make(text)
+        bio = BytesIO()
+        qr.save(bio, "PNG")
+        bio.seek(0)
+        await message.answer_photo(bio, caption=f"QR Code gerado para:\n{text}")
+    except:
+        await message.answer("Uso: /qr seu texto aqui")
+
+# Encurtar Link
+@dp.message(Command("short"))
+async def short(message: types.Message):
+    try:
+        url
